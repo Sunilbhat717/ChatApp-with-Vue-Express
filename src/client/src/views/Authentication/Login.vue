@@ -1,4 +1,7 @@
 <template>
+<div>
+  <v-alert dense outlined type="error" align="center" v-if="error"> {{errorMsg }}</v-alert>
+
   <Panel title="Log In" :align="align">
     <!-- Using template for named slots to work -->
     <template v-slot:form-container>
@@ -13,8 +16,11 @@
 
         <v-text-field
           v-model="password"
+          :append-icon="show ? 'mdi-eye' : 'mdi-eye-off'"
           :counter="25"
           :rules="passwordRules"
+          :type="show ? 'text' : 'password'"
+          @click:append="show = !show"
           label="Password"
           required
         ></v-text-field>
@@ -24,9 +30,8 @@
           color="deep-purple accent-4"
           elevation="2"
           :dark="valid"
-        
           class="mr-4 my-4"
-          @click="validate"
+          @click="login"
         >
           Login
         </v-btn>
@@ -45,18 +50,23 @@
       </v-form>
     </template>
   </Panel>
+</div>
 </template>
 
 <script>
 import Panel from "../../components/Panel";
+import AuthenticationService from "../../services/AuthenticationService";
 export default {
   data: () => ({
     valid: true,
+    show:false,
     email: "",
-    align:"center",
+    align: "center",
+    error: false,
+    errorMsg:"",
     emailRules: [
       (v) => !!v || "Username is required",
-      (v) => /.+@.+\..+/.test(v) || "Username must be valid",
+      (v) => (v && v.length <= 50 && v.length >= 3) || "Username must be valid",
     ],
     password: "",
     passwordRules: [
@@ -71,8 +81,25 @@ export default {
     Panel,
   },
   methods: {
-    validate() {
-      this.$refs.form.validate();
+    async login() {
+      try {
+        if (!this.$refs.form.validate()) {
+          return;
+        }
+
+        const response = await AuthenticationService.login({
+          email: this.email,
+          password: this.password,
+        });
+        this.$store.dispatch("setToken", response.data.token);
+        this.$store.dispatch("setUser", response.data.user);
+        this.$router.push({
+          name: "SignUp",
+        });
+      } catch (err) {
+        this.error = true
+        this.errorMsg = err.response.data.error;
+      }
     },
   },
 };
